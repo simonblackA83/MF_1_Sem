@@ -95,7 +95,8 @@ def mean_market(df, ticker):
     mean_return = np.mean(pct_change(df, ticker)['Daily Return(%)'])
     return mean_return
 
-def 
+def covar():
+    #blabla
 
 mean_nasdaq_return_stock = [mean_market(c, stock) for stock in np.unique(c['Ticker'])]
 mean_market = np.mean(mean_nasdaq_return_stock)
