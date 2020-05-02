@@ -18,14 +18,16 @@ from datetime import date
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import time
-import fix_yahoo_finance as yf
+#import fix_yahoo_finance as yf
+import yfinance as yf
+from fredapi import Fred
 
 
 
 ############### Data Import from Yahoo Finance ###############
 start_time = time.clock()
 #source copy paste to excel: https://www.slickcharts.com/nasdaq100
-ticker_yahoo = pd.read_excel('C:\\Users\\SIMON.BLACK\\Documents\\GitHub\\MF_1_Sem\\nasdaq100.xlsx', 
+ticker_yahoo = pd.read_excel('C:\\Users\\41799\\Documents\\Python Scripts\\MF_1_Sem\\nasdaq100.xlsx', 
                        sheet_name = 'Ticker')     
 
 ticker_yahoo = list(ticker_yahoo['Symbol'])
@@ -58,6 +60,30 @@ for i in ticker_yahoo[1:]:
         pass
 
 ############### Data Import from Yahoo Finance ###############
+    
+############### Data Import from Yahoo Finance as Columns ###############  
+        
+def yahoo_stock_as_column(stocks, end_date, start_date):
+    start_time = time.clock()
+    df_folio = pd.DataFrame(yf.download(stocks[0], 
+                      start = start_date, 
+                      end = end_date, 
+                      progress=False)['Adj Close'])
+    df_folio.columns = [stocks[0]]#set stock TICKER
+    
+
+
+    for i in stocks[1:]:
+        price = pd.DataFrame(yf.download(i, 
+                          start = start_date, 
+                          end = end_date, 
+                          progress=False)['Adj Close'])
+    
+        df_folio[i] = price
+        print('Completed:', i)
+    print('Stocks Downloaded:', df_folio.shape[1])
+    print(time.clock() - start_time, "seconds for data download after module import")
+    return df_folio
         
 ############### Data Quality Checks ###############   
     
@@ -83,18 +109,26 @@ if len(check) > 0:
     print('more need to be deleted')
 else:
     print('good to continue') 
-    
+n = len(np.unique(df_raw['Ticker'])) 
+stockz = np.unique(df_raw['Ticker'])
+print('Download took (seconds):', time.clock() - start_time)
 ############### Data Quality Checks ###############   
     
     
 ############### Calculate Statistics such as Cov, Corr, Beta, Means, Var etc..... ###############       
+def log_returns(data):
+    
+	log_returns = np.log(data/data.shift(1))
+	return log_returns
+
+
 def pct_change(df, ticker):
     u = split(df, ticker)
     tick = u['Ticker']
-    pct = u['Adj. Close'].pct_change(1).fillna(0)
+    pct = u['Adj Close'].pct_change(1).fillna(0)
     #pct *= 100#Adjust for % i.e. *100
     data = pd.concat([tick, pct], axis = 1)
-    data = data.rename(columns = {"Adj. Close": "Daily Return(%)"})
+    data = data.rename(columns = {"Adj Close": "Daily Return(%)"})
     return data
 
 def mean_market(df, ticker):
@@ -108,11 +142,11 @@ def equal_index(df, ticker, n_stocks = n):
     return np.array(weighted_return)
 
 
-nasdaq = equal_index(c, stockz[0])
+nasdaq = equal_index(df_raw, stockz[0])
 
 for i in stockz[1:len(stockz)]:
     print(i)
-    next_stock = equal_index(c, i)
+    next_stock = equal_index(df_raw, i)
     nasdaq += next_stock
     
 mean_nasdaq_equal_w = np.mean(nasdaq)   
@@ -141,19 +175,35 @@ def covar(df, index, ticker):
 #x.cov()
 #x.corr()
 
-beta = {covar(c, nasdaq, stockz[0])[0]: covar(c, nasdaq, stockz[0])[3]} 
+beta = {covar(df_raw, nasdaq, stockz[0])[0]: covar(df_raw, nasdaq, stockz[0])[3]} 
 for i in range(1,len(stockz)):
-    beta.update({covar(c, nasdaq, stockz[i])[0]: covar(c, nasdaq, stockz[i])[3]})
-for i in np.unique(c['Ticker']):
-    
-    print(beta[i])
-beta_arr = np.array([beta[i] for i in np.unique(c['Ticker'])]) 
-#mean_nasdaq_return_stock = np.array([mean_market(c, stock) for stock in np.unique(c['Ticker'])])
+    beta.update({covar(df_raw, nasdaq, stockz[i])[0]: covar(df_raw, nasdaq, stockz[i])[3]})
 
-#Split data set in two half years:
-np.mean(nasdaq)
-rf_6m
-    
-    
-    
+beta_arr = np.array([beta[i] for i in np.unique(df_raw['Ticker'])]) 
+
+#Get rates from Fred API:
+rates = ['DGS1MO', 'DGS3MO', 'DGS6MO', 'DGS1', 'DGS2', 'DGS3', 'DGS5',
+         'DGS7', 'DGS10', 'DGS20', 'DGS30']#Treasury 1m, 3m, 6m, 1y ......30y
+#Set api_key
+fred = Fred(api_key='6be21606d68265a883ef83d0fd9b93a4')
+rf_6m = fred.get_series(rates[2])# Time series from 1982 - 2020
+
+#Split data set in to two half years:   
+x = yahoo_stock_as_column(stockz, end_date, start_date)
+x1 = x.head(int(x.shape[0]/2))
+x2 = x.tail(int(x.shape[0]/2))   
+#Quality Check: pd.concat([x1,x2]) - x -> zeros
+rf_6m_sub = rf_6m.tail(x.shape[0])
+rf_6m_2 = rf_6m_sub.tail(x2.shape[0])#there are NAs
+rf_6m_1 = rf_6m_sub.head(x2.shape[0])#there are NAs
+  
+x1_log_return = log_returns(x1).dropna()
+x2_log_return = log_returns(x2).dropna()
+ex = np.matrix(x1_log_return)* 1/x1_log_return.shape[0]
+
+m = np.matrix(x1_log_return)* 1/x1_log_return.shape[0]
+
+
+
+  
     
