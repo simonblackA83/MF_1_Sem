@@ -199,11 +199,70 @@ rf_6m_1 = rf_6m_sub.head(x2.shape[0])#there are NAs
   
 x1_log_return = log_returns(x1).dropna()
 x2_log_return = log_returns(x2).dropna()
-ex = np.matrix(x1_log_return)* 1/x1_log_return.shape[0]
 
-m = np.matrix(x1_log_return)* 1/x1_log_return.shape[0]
+#Mean Return of NASDAQ 103 equally weighted
+c_sum_1 = x1_log_return.cumsum()
+c_sum_2 = x2_log_return.cumsum()
+market_equal_w_1_mean = np.sum(c_sum_1.iloc[-1] * 1/x1_log_return.shape[1])#NASDAQ non-equal-w and non log return: 8276.85/8036.77 = 1.029873
+market_equal_w_2_mean = np.sum(c_sum_2.iloc[-1] * 1/x2_log_return.shape[1])
+#Time Series of Index equally weighted
+market_equal_w_1 = np.matrix(x1_log_return)* 1/x1_log_return.shape[1]
+market_equal_w_2 = np.matrix(x2_log_return)* 1/x2_log_return.shape[1]
+market_equal_w_1_stock_index = np.sum(market_equal_w_1, axis = 1)#row_sum
+market_equal_w_2_stock_index = np.sum(market_equal_w_2, axis = 1)#row_sum
+
+#index = pd.DataFrame(market_equal_w_1_stock_index, columns = ['NASDAQ'])
+#t_cov = pd.concat([pd.DataFrame(x1_log_return['AAPL'].reset_index())['AAPL'], 
+#               index], axis = 1).cov()
+#df = pd.concat([pd.DataFrame(x1_log_return['AAPL'].reset_index())['AAPL'], 
+#               index], axis = 1)
 
 
+def sample_cov(df, ticker, idx = 'NASDAQ'):
+    
+    x_samp_mean = np.sum(df[ticker]) / (df[ticker].shape[0] - 1)# sum(x)/N-1
+    y_samp_mean = np.sum(df[idx]) / (df[idx].shape[0] - 1)
+    a = df[ticker].apply(lambda i: i - x_samp_mean)
+    b = df['NASDAQ'].apply(lambda i: i - y_samp_mean)
+    cov = np.sum(a*b)/len(a - 1)#Sample Cov: N-1
+    return cov
 
-  
+def beta(df, ticker, idx = 'NASDAQ'):
+    cov = sample_cov(df, ticker)
+    return cov / df[idx].var()
+
+#Initiate Beta    
+M = np.zeros((x1_log_return.shape[1],1))
+index = pd.DataFrame(market_equal_w_1_stock_index, columns = ['NASDAQ'])
+row = 0
+for i in stockz[0:len(stockz)]:
+    print(i)
+    df = pd.concat([pd.DataFrame(x1_log_return[i].reset_index())[i], 
+               index], axis = 1)
+    b = beta(df, i)
+    M[row] = b
+    row += 1
+    
+df_beta = pd.DataFrame(M, columns = ['Beta']); df_beta['Ticker'] = stockz
+
+#CAPM: ER(stock) = RiskFree + Beta(ER(market) - RiskFree))
+t = 1/2#half year time period for calculation
+rf = np.mean(rf_6m_1)/100#Conversion to percentage -> decimal
+rf = np.exp(rf*t) - 1#Conversion of one year rate to half year with cont compounding
+
+df_beta['CAPM Exp.Ret'] = df_beta['Beta'].apply(lambda b: rf + (b*(market_equal_w_1_mean - rf)))
+emp = pd.DataFrame(x2_log_return.cumsum().iloc[-1].reset_index())
+emp.columns = ['Ticker', 'Return_Empirical']
+df = df_beta.merge(emp, left_on = 'Ticker', right_on = 'Ticker') 
+
+#Calculation Check:
+x2_log_return.cumsum().iloc[-1] 
+start = x['AAPL'].iloc[127] 
+end = x['AAPL'].iloc[-1]
+np.log(end) - np.log(start)
+
+sns.scatterplot(x = 'Beta', y = 'Return_Empirical', data = df)
+sns.scatterplot(x = 'Beta', y = 'CAPM Exp.Ret', data = df)
+
+
     
