@@ -31,7 +31,7 @@ ticker_yahoo = pd.read_excel('C:\\Users\\41799\\Documents\\Python Scripts\\MF_1_
                        sheet_name = 'Ticker')     
 
 ticker_yahoo = list(ticker_yahoo['Symbol'])
-
+"""
 #Yahoo as data provider
 
 end_date =  date.today() 
@@ -60,7 +60,7 @@ for i in ticker_yahoo[1:]:
         pass
 
 ############### Data Import from Yahoo Finance ###############
-    
+   """ 
 ############### Data Import from Yahoo Finance as Columns ###############  
         
 def yahoo_stock_as_column(stocks, end_date, start_date):
@@ -87,7 +87,7 @@ def yahoo_stock_as_column(stocks, end_date, start_date):
         
 ############### Data Quality Checks ###############   
     
-    
+ """   
 def split(df, ticker):
     x = df[df['Ticker'] == ticker]
     return x
@@ -113,7 +113,7 @@ n = len(np.unique(df_raw['Ticker']))
 stockz = np.unique(df_raw['Ticker'])
 print('Download took (seconds):', time.clock() - start_time)
 ############### Data Quality Checks ###############   
-    
+   """ 
     
 ############### Calculate Statistics such as Cov, Corr, Beta, Means, Var etc..... ###############       
 def log_returns(data):
@@ -121,7 +121,7 @@ def log_returns(data):
 	log_returns = np.log(data/data.shift(1))
 	return log_returns
 
-
+"""
 def pct_change(df, ticker):
     u = split(df, ticker)
     tick = u['Ticker']
@@ -180,7 +180,7 @@ for i in range(1,len(stockz)):
     beta.update({covar(df_raw, nasdaq, stockz[i])[0]: covar(df_raw, nasdaq, stockz[i])[3]})
 
 beta_arr = np.array([beta[i] for i in np.unique(df_raw['Ticker'])]) 
-
+"""
 #Get rates from Fred API:
 rates = ['DGS1MO', 'DGS3MO', 'DGS6MO', 'DGS1', 'DGS2', 'DGS3', 'DGS5',
          'DGS7', 'DGS10', 'DGS20', 'DGS30']#Treasury 1m, 3m, 6m, 1y ......30y
@@ -188,7 +188,10 @@ rates = ['DGS1MO', 'DGS3MO', 'DGS6MO', 'DGS1', 'DGS2', 'DGS3', 'DGS5',
 fred = Fred(api_key='6be21606d68265a883ef83d0fd9b93a4')
 rf_6m = fred.get_series(rates[2])# Time series from 1982 - 2020
 
-#Split data set in to two half years:   
+#Split data set in to two half years:
+stockz = np.unique(ticker_yahoo) 
+end_date =  date.today() 
+start_date = end_date - relativedelta(years = 1)  
 x = yahoo_stock_as_column(stockz, end_date, start_date)
 x1 = x.head(int(x.shape[0]/2))
 x2 = x.tail(int(x.shape[0]/2))   
@@ -255,13 +258,15 @@ emp = pd.DataFrame(x2_log_return.cumsum().iloc[-1].reset_index())
 emp.columns = ['Ticker', 'Return_Empirical']
 df = df_beta.merge(emp, left_on = 'Ticker', right_on = 'Ticker') 
 
-#Calculation Check:
+#Calculation Check (Apple Stock Spot Check):
 x2_log_return.cumsum().iloc[-1] 
-start = x['AAPL'].iloc[127] 
+start = x['AAPL'].iloc[126] 
 end = x['AAPL'].iloc[-1]
 np.log(end) - np.log(start)
 
+#Empirical
 sns.scatterplot(x = 'Beta', y = 'Return_Empirical', data = df)
+#Theoretical (CAPM)
 sns.scatterplot(x = 'Beta', y = 'CAPM Exp.Ret', data = df)
 
 
