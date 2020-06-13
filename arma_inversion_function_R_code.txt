@@ -1,0 +1,21 @@
+arma_inv_matrix = function(ar_vector, ma_vector){
+  
+  r = max(c(length(ar_vector), length(ma_vector) + 1))
+  
+  #AR
+  A = matrix(nrow = r, ncol = r)
+  A[,1] = c(ar_vector, 0)
+  A[1:dim(A)[1] - 1, 2:dim(A)[1]] = diag(rep(1,dim(A)[1]-1))
+  A[dim(A)[1], ] = 0
+  #MA
+  B = matrix(nrow = r, ncol = r)
+  B[,1] = c(-ma_vector, 0)
+  B[1:dim(B)[1] - 1, 2:dim(B)[1]] = diag(rep(1,dim(B)[1]-1))
+  B[dim(A)[1], ] = 0
+  
+  matrices = list('A' = A, 'B' = B)
+  
+  return(matrices)
+}
+
+matrices = arma_inv_matrix(c(0.9), c(0.6))
